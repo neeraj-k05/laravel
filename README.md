@@ -121,3 +121,54 @@ sudo add-apt-repository ppa:ondrej/php -y
 run karna. Warna purani broken repository phir error degi.
 
 php artisan serve --host=0.0.0.0 --port=8000
+
+
+
+
+
+
+
+pipeline 
+
+
+pipeline {
+    agent any
+
+    stages {
+
+        stage('Checkout') {
+            steps {
+                git branch: 'main',
+                url: 'https://github.com/snykk/Laracoffee.git'
+            }
+        }
+
+        stage('Build') {
+            steps {
+                sh '''
+                composer install --no-dev
+                npm install
+                '''
+            }
+        }
+
+        stage('Deploy') {
+            steps {
+                sshagent(['ec2-key']) {
+                    sh '''
+                    rsync -avz . ubuntu@EC2_IP:/var/www/laracoffee/
+
+                    ssh ubuntu@EC2_IP "
+                    cd /var/www/laracoffee
+
+                    php artisan migrate --force
+                    php artisan config:cache
+
+                    sudo systemctl restart nginx
+                    "
+                    '''
+                }
+            }
+        }
+    }
+}
